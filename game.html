@@ -926,28 +926,25 @@ function g3(id){return (groupRank[id]||GROUPS[id])[2]||null}
 function posBadgeClass(i){return['pos-1','pos-2','pos-3','pos-4'][i]}
 function posLabel(gId,rank){return gId+(rank+1)} // e.g. "A1", "B2"
 
-// ===== JSONBLOB (no API key needed) =====
-const BLOB='https://jsonblob.com/api/jsonBlob';
+// ===== LEAGUE API (Vercel proxy — no CORS, no auth needed) =====
+const API='/api/league';
 async function createBin(d){
-  const r=await fetch(BLOB,{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(d)});
-  if(!r.ok) throw new Error('JSONblob error '+r.status);
-  // ID is in the Location header: https://jsonblob.com/api/jsonBlob/{id}
-  const loc=r.headers.get('Location')||'';
-  const id=loc.split('/').pop();
-  if(!id) throw new Error('No blob ID returned');
-  return id;
+  const r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});
+  if(!r.ok) throw new Error('Create failed: '+r.status);
+  const j=await r.json();
+  if(!j.id) throw new Error('No ID returned');
+  return j.id;
 }
 async function readBin(id){
-  const r=await fetch(`${BLOB}/${id}`,{headers:{'Accept':'application/json'}});
-  if(!r.ok) throw new Error('Cannot read blob');
+  const r=await fetch(`${API}?id=${id}`);
+  if(!r.ok) throw new Error('Read failed: '+r.status);
   return await r.json();
 }
 async function updateBin(id,d){
-  const r=await fetch(`${BLOB}/${id}`,{method:'PUT',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(d)});
-  if(!r.ok) throw new Error('Cannot update blob');
+  const r=await fetch(`${API}?id=${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});
+  if(!r.ok) throw new Error('Update failed: '+r.status);
   return await r.json();
 }
-
 // ===== AUTH / LEAGUE =====
 function genCode(){return 'WC'+Math.random().toString(36).substring(2,6).toUpperCase()}
 function showCreate(){

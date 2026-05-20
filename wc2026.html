@@ -867,27 +867,45 @@ function g3(id){return (groupRank[id]||GROUPS[id])[2]||null}
 function posBadgeClass(i){return['pos-1','pos-2','pos-3','pos-4'][i]}
 function posLabel(gId,rank){return gId+(rank+1)} // e.g. "A1", "B2"
 
-// ===== JSONBLOB (no API key needed) =====
-const BLOB='https://jsonblob.com/api/jsonBlob';
+// ===== LEAGUE API =====
+// When hosted on Vercel, uses /api/league proxy (no CORS issues)
+// When used as standalone file, uses corsproxy.io to reach JSONBlob
+const IS_VERCEL = window.location.hostname.includes('vercel.app') || window.location.hostname.includes('vercel.sh');
+const BLOB_BASE = 'https://jsonblob.com/api/jsonBlob';
+const PROXY = 'https://corsproxy.io/?url=';
+
 async function createBin(d){
-  const r=await fetch(BLOB,{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(d)});
-  if(!r.ok) throw new Error('JSONblob error '+r.status);
+  if(IS_VERCEL){
+    const r=await fetch('/api/league',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});
+    if(!r.ok) throw new Error('Create failed: '+r.status);
+    const j=await r.json(); return j.id;
+  }
+  const url=PROXY+encodeURIComponent(BLOB_BASE);
+  const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(d)});
+  if(!r.ok) throw new Error('Create failed: '+r.status);
   const loc=r.headers.get('Location')||'';
-  const id=loc.split('/').pop();
-  if(!id) throw new Error('No blob ID returned');
-  return id;
+  return loc.split('/').pop()||'';
 }
 async function readBin(id){
-  const r=await fetch(`${BLOB}/${id}`,{headers:{'Accept':'application/json'}});
-  if(!r.ok) throw new Error('Cannot read blob');
+  if(IS_VERCEL){
+    const r=await fetch(`/api/league?id=${id}`);
+    if(!r.ok) throw new Error('Read failed: '+r.status);
+    return await r.json();
+  }
+  const r=await fetch(PROXY+encodeURIComponent(BLOB_BASE+'/'+id),{headers:{'Accept':'application/json'}});
+  if(!r.ok) throw new Error('Read failed: '+r.status);
   return await r.json();
 }
 async function updateBin(id,d){
-  const r=await fetch(`${BLOB}/${id}`,{method:'PUT',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(d)});
-  if(!r.ok) throw new Error('Cannot update blob');
+  if(IS_VERCEL){
+    const r=await fetch(`/api/league?id=${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});
+    if(!r.ok) throw new Error('Update failed: '+r.status);
+    return await r.json();
+  }
+  const r=await fetch(PROXY+encodeURIComponent(BLOB_BASE+'/'+id),{method:'PUT',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(d)});
+  if(!r.ok) throw new Error('Update failed: '+r.status);
   return await r.json();
 }
-
 // ===== AUTH / LEAGUE =====
 function genCode(){return 'WC'+Math.random().toString(36).substring(2,6).toUpperCase()}
 function showCreate(){
